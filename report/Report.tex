@@ -1,0 +1,83 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{url}
+\usepackage[margin=1.2in]{geometry} %make margins smaller
+\usepackage{indentfirst} %to indent the first paragraph
+
+%for figures
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{caption}
+\captionsetup[figure]{font=small}
+\captionsetup{justification=centering}
+\usepackage{subcaption}
+\usepackage{float}
+%\graphicspath{{/home/an20830/Documents/COMPASS/TB2/Mini Project/MSLDA/analysis/}} %Setting the graphicspath
+
+\usepackage{csquotes} %for quotes
+\usepackage{booktabs} %for tables
+\usepackage[ruled,vlined]{algorithm2e} %for algorithms
+\usepackage{hyperref} %for links
+
+
+\begin{document}
+\title{Modelling household electricity demand}
+\author{Euan Enticott, Georgina Mansell, and Conor Newton}
+\date{\today}
+
+\maketitle
+ 
+\section*{Abstract}
+
+
+\section{Introduction}
+
+\section{Data} \label{data}
+
+\section{Methods} \label{methods}
+
+\subsection{Clustering}
+
+\subsection{Ridge Regression} 
+
+\subsection{Selecting $\lambda$}
+ 
+\subsection{Posterior Distribution} 
+
+\subsection{R Package} 
+
+The full algorithm is given below:
+
+\begin{algorithm}[H] \label{alg1}
+\DontPrintSemicolon
+\SetAlgoLined
+\KwData{...}
+\KwResult{...}
+Text\;
+\Repeat{convergence}{
+	$a=b$
+}
+\For{i=1, 2, ...}{
+	Initialise $b$ \;
+	$a=b$}
+\caption{Algorithm1}
+\end{algorithm}
+
+
+\section{Results}
+
+\section{Conclusion}
+
+\pagebreak
+\bibliographystyle{ieeetr}
+\bibliography{Citations}
+
+%start appendix and number equations A.1
+%\pagebreak
+%\appendix
+%\numberwithin{equation}{section} 
+
+\end{document}
