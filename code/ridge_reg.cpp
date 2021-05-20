@@ -34,11 +34,11 @@ double get_ocv(arma::mat X, arma::mat y, double lambda){
 
 // [[Rcpp::export]]
 SEXP optim_rr(arma::mat X, arma::mat y){
-  double n = X.n_cols;
-  int i = 0;
-  arma::vec lams = arma::logspace(-5, 5, 10);
-  arma::vec out;
-  for (double lambda : lams) {
+  arma::vec lams = arma::logspace(-5, 5, 20);
+  double n = lams.n_elem; 
+  arma::vec out(n);
+  for (int i = 0; i < n; i++) {
+    double lambda = lams[i];
     out[i] = get_ocv(X, y, lambda);
   }
   return Rcpp::wrap(out);
