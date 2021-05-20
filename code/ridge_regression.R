@@ -9,7 +9,10 @@ y <- df$demand
 Xmat <- as.matrix(X)
 ymat <- as.matrix(y)
 
-fit_rr(Xmat, ymat, 1)
+beta <- fit_rr(Xmat, ymat, 1)
+
+preds <- Xmat %*% beta
+RMSE <- sqrt(mean((preds - y)**2)) # training RMSE
 
 R_ridge_fit <- function(X, y, lambda) {
   XtX <- t(X) %*% X
@@ -22,5 +25,3 @@ system.time(R_ridge_fit(Xmat, ymat, 1))
 system.time(fit_rr(Xmat, ymat, 1))
 
 optim_rr(Xmat, ymat)
-
-f(Xmat[1:100000,], ymat[1:100000,,drop = F], 1)
