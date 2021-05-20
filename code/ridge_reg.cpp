@@ -16,12 +16,6 @@ SEXP fit_rr(arma::mat X, arma::mat y, double lambda){
 }
 
 // [[Rcpp::export]]
-arma::vec diag_get(const arma::mat& X)   // note the 'const' and '&'
-{
-  return X.diag();
-}
-
-// [[Rcpp::export]]
 double get_ocv(arma::mat X, arma::mat y, double lambda){
   double n = X.n_cols;
   arma::mat XtX = X.t() * X;
@@ -33,8 +27,8 @@ double get_ocv(arma::mat X, arma::mat y, double lambda){
 }
 
 // [[Rcpp::export]]
-SEXP optim_rr(arma::mat X, arma::mat y){
-  arma::vec lams = arma::logspace(-5, 5, 20);
+SEXP optim_rr(arma::mat X, arma::mat y, arma::vec lams){
+  //arma::vec lams = arma::logspace(-5, 5, 20);
   double n = lams.n_elem; 
   arma::vec out(n);
   for (int i = 0; i < n; i++) {
