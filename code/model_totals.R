@@ -1,23 +1,23 @@
-# Making a dataset of total demand
+# Test ridge regression models for total demand
 
-#with a feature transform
-#hold out last day of each month
-#fit model for all times together 
-#fit model for each time of day separately 
-#predict hold out data and plot
+## Script contents:
+#make dataset of totals
+#apply a feature transform
+#model 1 - fit a model for all times together (base R)
+#model 2 - fit a model for each time of day separately (base R)
+#model 3 - fit a model for each time of day separately (Rcpp)
+#for each model we predict the demand on the last day of each month and plot
+
+## Set up
+library(tidyverse)
+library(Rcpp)
+library(RcppArmadillo)
 
 source("code/data_prep2.R")
-
-#create a column in extra to indicate the last day of the month to use as a hold-out validation set
-extra <- extra %>%
-  mutate(month = month(date)) %>%
-  group_by(month) %>%
-  mutate(lastDay = max(date)) %>%
-  ungroup() %>%
-  mutate(testSet = date==lastDay) %>%
-  select(-lastDay, -month)
+Rcpp::sourceCpp("code/ridge_reg.cpp")
 
 
+## Create dataset
 #calculate total demand and combine with extra
 df <- extra %>%
   mutate(demand = rowSums(cust),
@@ -28,7 +28,8 @@ df <- extra %>%
 y <- df$demand
 X <- df[, 1:4]
 
-#feature transform (not adding columns if correlation is >90%)
+## Feature transform 
+#(not adding columns if correlation is >90%)
 for(i in 1:4){
   name <- colnames(X)[i]
   col <- paste0(name,"^2")
@@ -45,11 +46,11 @@ for(i in 1:4){
   }
 }
 
-#standardise
+## Standardise and split training and test
 X <- as.matrix(X)
 X <- scale(X)
 mean_y <- mean(y)
-y <- y - mean(y) #probably should include column of 1s instead of this, but need to make sure beta_0 isnt minimised
+y <- y - mean(y) #subtract mean so we dont need an intercept
 
 #remove the last day as a test
 y_test <- y[df$testSet]
@@ -58,11 +59,10 @@ X_test <- X[df$testSet,]
 y <- y[!df$testSet]
 X <- X[!df$testSet,]
 
-#save these data to test Rcpp functions
-save(df, X, y, X_test, y_test, mean_y, file="data/TotalsTest.RData")
+#save(df, X, y, X_test, y_test, mean_y, file="data/TotalsTest.RData")
 
 
-#define a function for OCV 
+## Define a function for OCV 
 ocv <- function(X, y, lam){
   p <- ncol(X)
   A <- X %*% solve(crossprod(X) + lam * diag(p) , t(X))
@@ -72,7 +72,7 @@ ocv <- function(X, y, lam){
 #for larger datasets we could consider the SVD method from problem sheet 4
 
 
-### Fitting 1 regression to all the totals data
+## Model test 1 
 M <- 30
 lambdas <- exp(seq(-1,5,length=M))
 ocvs <- rep(NA, M)
@@ -92,15 +92,23 @@ y_pred <- X_test %*% beta
 y_test <- y_test + mean_y
 y_pred <- y_pred + mean_y
 
-plot(x=c(0,47), y=range(y_test, y_pred), type="n")
+png("plots/TotalModel_test1.png", width=1000, height=800)
+par(mfrow=c(3, 4))
+par(mar=c(4,4,2,1))
 for(i in 1:12){
-  lines(0:47, y_test[(i*48-47):(i*48)])
+  plot(0:47, y_test[(i*48-47):(i*48)], type="l", xlab="tod", ylab="demand", 
+       ylim=range(y_test, y_pred), main=paste("month", i)) 
   lines(0:47, y_pred[(i*48-47):(i*48)], col=2)
 }
-#predictions are far too flat
+dev.off()
+
+(MSE <- mean(abs(y_test-y_pred)))
+#[1] 269.91
+
+#predictions are way too flat
 
 
-## Trying a model per tod
+## Model test 2
 M <- 20
 lambdas <- exp(seq(0,4,length=M))
 ocvs <- rep(NA, M)
@@ -124,12 +132,60 @@ for(i in 1:48){
 
 y_pred <- y_pred + mean_y
 
-plot(x=c(0,47), y=range(y_test, y_pred), type="n")
+png("plots/TotalModel_test2.png", width=1000, height=800)
+par(mfrow=c(3, 4))
+par(mar=c(4,4,2,1))
 for(i in 1:12){
-  lines(0:47, y_test[(i*48-47):(i*48)])
+  plot(0:47, y_test[(i*48-47):(i*48)], type="l", xlab="tod", ylab="demand", 
+       ylim=range(y_test, y_pred), main=paste("month", i)) 
   lines(0:47, y_pred[(i*48-47):(i*48)], col=2)
 }
+dev.off()
+
+(MSE <- mean(abs(y_test-y_pred)))
+#[1] 98.37111
+
 #this performs much better
+
+
+## Model test 3
+for(i in 1:48){
+  #subset the training data
+  tod <- X_test[i, "tod"]
+  X_sub <- X[X[,"tod"] == tod,]
+  y_sub <- as.matrix(y[X[,"tod"] == tod])
+  
+  #find lambda hat through OCV
+  ocvs <- optim_rr(X_sub, y_sub, lambdas)
+  l_hat <- lambdas[which.min(ocvs)]
+  #plot(log(lambdas), ocvs)
+  
+  #get optimal betas
+  beta <- fit_rr(X_sub, y_sub, l_hat)
+  
+  #use optimal betas to predict the hold out day
+  test_sub <- X_test[,"tod"] == tod
+  y_pred[test_sub] <- X_test[test_sub,] %*% beta
+}
+
+y_pred <- y_pred + mean_y
+
+png("plots/TotalModel_test3.png", width=1000, height=800)
+par(mfrow=c(3, 4))
+par(mar=c(4,4,2,1))
+for(i in 1:12){
+  plot(0:47, y_test[(i*48-47):(i*48)], type="l", xlab="tod", ylab="demand", 
+       ylim=range(y_test, y_pred), main=paste("month", i)) 
+  lines(0:47, y_pred[(i*48-47):(i*48)], col=2)
+}
+dev.off()
+
+(MSE <- mean(abs(y_test-y_pred)))
+#[1] 98.37111
+
+#exactly the same results as the base R implementation
+#and runs very fast
+
 
 #how to plot the credible interval for our y predictions,
 #we know the posterior distribution for beta

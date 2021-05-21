@@ -45,6 +45,15 @@ surv$heatHome <- as.factor(surv$heatHome) #2 levels
 surv$heatWater <- as.factor(surv$heatWater) #2 levels
 surv$windows <- factor(surv$ windows, levels=c("None", "Quarter", "HalfQuarters", "Half", "All"))
 
+#add a column to extra indicating the last day of the month to use as a hold-out validation set
+extra <- extra %>%
+  mutate(month = month(date)) %>%
+  group_by(month) %>%
+  mutate(lastDay = max(date)) %>%
+  ungroup() %>%
+  mutate(testSet = date==lastDay) %>%
+  select(-lastDay, -month)
+
 
 # maybe this only needs to be created per model, since its so large?
 
