@@ -6,6 +6,7 @@
 #model 1 - fit a model for all times together (base R)
 #model 2 - fit a model for each time of day separately (base R)
 #model 3 - fit a model for each time of day separately (Rcpp)
+#model 4 - fit a model for each time of day in parallel (Rcpp / openMP)
 #for each model we predict the demand on the last day of each month and plot
 
 ## Set up
@@ -73,14 +74,14 @@ ocv <- function(X, y, lam){
 
 
 ## Model test 1 
-M <- 30
-lambdas <- exp(seq(-1,5,length=M))
+M <- 20
+lambdas <- exp(seq(-2,4,length=M))
+
 ocvs <- rep(NA, M)
 for(i in 1:M){
   ocvs[i] <- ocv(X, y, lambdas[i])
 }
 plot(log(lambdas), ocvs)
-plot(log(lambdas)[10:15], ocvs[10:15], type="l") #zooming in on min
 
 
 #use best model to find beta
@@ -103,15 +104,12 @@ for(i in 1:12){
 dev.off()
 
 (MSE <- mean(abs(y_test-y_pred)))
-#[1] 269.91
+#[1] 269.8962
 
 #predictions are way too flat
 
 
 ## Model test 2
-M <- 20
-lambdas <- exp(seq(0,4,length=M))
-ocvs <- rep(NA, M)
 y_pred <- rep(NA, length(y_test))
 
 for(i in 1:48){
@@ -119,6 +117,7 @@ for(i in 1:48){
   X_sub <- X[X[,"tod"] == tod,]
   y_sub <- y[X[,"tod"] == tod]
   
+  ocvs <- rep(NA, M)
   for(i in 1:M){
     ocvs[i] <- ocv(X_sub, y_sub, lambdas[i])
   }
@@ -143,12 +142,15 @@ for(i in 1:12){
 dev.off()
 
 (MSE <- mean(abs(y_test-y_pred)))
-#[1] 98.37111
+#[1] 97.09471
 
 #this performs much better
 
 
+
 ## Model test 3
+y_pred <- rep(NA, length(y_test))
+
 for(i in 1:48){
   #subset the training data
   tod <- X_test[i, "tod"]
@@ -181,15 +183,43 @@ for(i in 1:12){
 dev.off()
 
 (MSE <- mean(abs(y_test-y_pred)))
-#[1] 98.37111
+#[1] 97.09471
 
 #exactly the same results as the base R implementation
 #and runs very fast
 
 
-#how to plot the credible interval for our y predictions,
-#we know the posterior distribution for beta
-#or do we need to sample from the posterior?
+
+## Model 4
+
+#par_reg runs in parallel and returns a matrix of optimal betas for each group
+idx <- as.numeric(as.factor(X[,"tod"]))
+betas <- par_reg(X, as.matrix(y), lambdas, idx)
+
+#now use betas to predict each tod
+y_pred <- rep(NA, length(y_test))
+for(i in 1:ncol(betas)){
+  tod <- as.factor(X[,"tod"])[i]
+  test_sub <- X_test[,"tod"] == tod
+  y_pred[test_sub] <- X_test[test_sub,] %*% betas[,i]
+}
+
+y_pred <- y_pred + mean_y
+
+png("plots/TotalModel_test4.png", width=1000, height=800)
+par(mfrow=c(3, 4))
+par(mar=c(4,4,2,1))
+for(i in 1:12){
+  plot(0:47, y_test[(i*48-47):(i*48)], type="l", xlab="tod", ylab="demand", 
+       ylim=range(y_test, y_pred), main=paste("month", i)) 
+  lines(0:47, y_pred[(i*48-47):(i*48)], col=2)
+}
+dev.off()
+
+(MSE <- mean(abs(y_test-y_pred)))
+#[1] 97.09471
+
+#we get the exact same results again :D
 
 
 
