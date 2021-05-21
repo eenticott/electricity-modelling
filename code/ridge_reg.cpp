@@ -19,11 +19,17 @@ vec fit_rr(mat X, mat y, double lambda){
 // [[Rcpp::export]]
 double get_ocv(mat X, mat y, double lambda){
   double n = X.n_cols;
-  mat XtX = X.t() * X;
+  mat XtX = X.t() * X;;
   mat I; I.eye(n, n);
-  mat Ad = diagvec(X * inv(XtX + (lambda * I)) * X.t());
-  vec mu_hat =  X * inv(XtX + (lambda * I)) * X.t() * y;
-  double out = sum(pow(y - mu_hat, 2)/pow(1 - Ad, 2));
+  // use svd decomp to find Aii
+  mat U;
+  mat V;
+  vec s;
+  svd_econ(U, s, V, X, "left");
+  vec Ad = sum(U * diagmat(s/(pow(s, 2) + lambda)), 1);
+  //vec Ad = arma::diagvec(X * inv(XtX + (lambda * I)) * X.t());
+  mat mu_hat =  X * inv(XtX + (lambda * I)) * X.t() * y;
+  double out = accu(pow(y - mu_hat, 2)/pow(1 - Ad, 2));
   return out;
 }
 
