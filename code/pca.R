@@ -19,46 +19,84 @@ df_avg_tod <- df %>% group_by(tod, ID) %>%
   spread(tod, avg_demand) %>% 
   column_to_rownames("ID")
 
+# This crashes my computer
 df_avg_daily <- df %>% group_by(time, ID) %>% 
   summarise(avg_demand = mean(demand)) %>% 
   spread(time, avg_demand) %>% 
   column_to_rownames("ID")
 
+# PCA from scratch
+pca <- function(x, sigma = 1.5) {
+  nodes <- dim(x)[1]
+
+  dmat <- dist(x)
+  
+  S <- apply(dmat, 1:2, function(x) x / sigma)
+
+  S_degree <- rowSums(S)
+  normalised_Laplacian <- diag(S_degree^(-1/2)) %*% S %*% diag(S_degree^(-1/2))
+
+  ev <- eigen(normalised_Laplacian)
+  ev_vector <- ev$vectors[,1:3]
+  
+  for(i in 1:nodes){
+    ev_vector[i,] <- ev_vector[i,] / sqrt(sum(ev_vector[i,]^2))
+  }
+  
+  EP=eigen(var(X))
+  PC=as.matrix(X) %*% as.matrix(EP$vectors)
+  
+  # Return the first two principle components for ploting
+  return(data.frame(PC[, 1], PC[, 2]))
+}
+
 # pca <- function(x) {
 #   # centering matrix
 #   n <- dim(x)[2]
 #   C <- diag(n) - matrix(1/n, nrow = n, ncol = n)
-#   
+# 
 #   # center the data matrix
 #   B <- C %*% t(x)
-#   
+# 
 #   # covariance matrix
 #   s <- (1 / n) * (t(B) %*% B)
-#   
+# 
 #   # compute the eigenvalues and eigenvectors
 #   s.eig <- eigen(s)
+# 
+#   p <- length(s.eig$values)
 #   
 #   pc1 <- s.eig$vectors[, 1]
 #   pc2 <- s.eig$vectors[, 2]
-#   
+# 
 #   data.frame(pc1, pc2)
 # }
 # 
-# df_avg_time.pca <- pr_comp(t(as.matrix(df_avg_time)))
+
+# PCA from scratch
+df_avg_time.pca <- pca(as.matrix(df_avg_tod))
+
+names(df_avg_time.pca) <- c("pc1", "pc2")
 # 
-# ggplot() + geom_point(aes(x = df_avg_time.pca$components[, 1], y = df_avg_time.pca$components[, 2]), colour = "black", size = 1)
+ggplot() + geom_point(aes(x = df_avg_time.pca$pc1, y = df_avg_time.pca$pc2), colour = "black", size = 1)
 #   
 
-# df_wg <- surv %>% select(ID, HOME.APPLIANCE..White.goods.)
-# df_avg_time_w_id <- df %>% group_by(tod, ID) %>% 
-#   summarise(avg_demand = mean(demand)) %>% 
-#   spread(tod, avg_demand)
-# df_id_wg <- merge(surv, df_avg_time_w_id, by = "ID") %>% column_to_rownames("ID")
-# df_id_wg$HOME.APPLIANCE..White.goods. <- as.factor(df_id_wg$HOME.APPLIANCE..White.goods.)
 
-pca <- prcomp(df_avg_daily, center = TRUE, scale. = TRUE)
-autoplot(pca, title = "PCA on the average demand for each day for each customer") + theme_classic()
+## Built-in pca
 
 pca <- prcomp(df_avg_tod, center = TRUE, scale. = TRUE)
 autoplot(pca, title = "PCA on the average demand at each time of day for each customer") + theme_classic()
 
+
+# ## PLOT PCA WITH White goods
+# 
+# df_wg <- surv %>% select(ID, HOME.APPLIANCE..White.goods.)
+# df_avg_time_w_id <- df %>% group_by(tod, ID) %>% 
+#                     summarise(avg_demand = mean(demand)) %>% 
+#                     spread(tod, avg_demand)
+# df_id_wg <- merge(surv, df_avg_time_w_id, by = "ID") %>% column_to_rownames("ID")
+# df_id_wg$HOME.APPLIANCE..White.goods. <- as.factor(df_id_wg$HOME.APPLIANCE..White.goods.)
+# 
+# pca <- prcomp(df_avg_time_w_id %>% column_to_rownames("ID"), center = TRUE, scale. = TRUE)
+# autoplot(pca, data = df_id_wg, colour = "HOME.APPLIANCE..White.goods.", title = "PCA on the average demand at each time of day for each customer") + theme_classic() + labs(colour = "Number of white goods")
+# 
