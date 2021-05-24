@@ -25,7 +25,20 @@ my_kmeans <- function(x, centers = 5) {
       centroid[i,] <- colMeans(x[which(category==i),])
     }
   }
+  
   return(category)
+}
+
+filter_clusters <- function(data, clusters, cluster_num) {
+  
+  # First we retrieve the ID's that belong to the required cluster
+  df_clusters <- data.frame(ID =data$ID, cluster = clusters)
+  IDs <- df_clusters %>% filter(cluster == cluster_num) %>% select(ID)
+  IDs <- t(as.vector(IDs))
+  
+  df_filtered <- subset(data, ID %in% IDs)
+  
+  return(df_filtered)
 }
 
 spectralClustering <- function(x, c = 1, k = 10) {
@@ -50,7 +63,7 @@ spectralClustering <- function(x, c = 1, k = 10) {
 
   clusters <- my_kmeans(Z, centers = k)
   
-  return(clusters$cluster)
+  return(clusters)
 }
 
 plot_clusters <- function(data, clusters) {
