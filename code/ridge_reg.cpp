@@ -48,16 +48,19 @@ vec optim_rr(mat X, mat y, vec lams){
 
 // defining an Rcpp function that uses openMP to parallelise over an index vector of groups 
 // data is split, optim_rr run on each group and a matrix of betas returned (column per group)
+// editing to also return a vector of the selected lambdas
 
 // [[Rcpp::export]]
-mat par_reg(mat X, mat y, vec lams, vec idx)
+Rcpp::List par_reg(mat X, mat y, vec lams, vec idx)
 {
   // Initialise empty betas matrix
   vec groups = unique(idx);
   int ncol = groups.n_elem;
   int nrow = X.n_cols ;
   mat betas(nrow, ncol);
-    
+  
+  vec opt_lambdas(ncol);
+  
   #pragma omp parallel for
   for(int i=0; i<ncol; i++)
   {
@@ -78,11 +81,13 @@ mat par_reg(mat X, mat y, vec lams, vec idx)
     
     #pragma omp critical
     {
+      opt_lambdas[i] = opt_lam;
       betas.col(i) = beta;
     }
   }
 
-  return betas;
+  return Rcpp::List::create(Rcpp::Named("lambdas")=opt_lambdas,
+                            Rcpp::Named("betas")=betas);
 }
 
 
