@@ -5,9 +5,12 @@ library(tidyverse)
 library(Rcpp)
 library(RcppArmadillo)
 
+#install.packages("sitmo")
+#install.packages("BH")
+
 source("code/data_prep2.R")
 Rcpp::sourceCpp("code/ridge_reg.cpp")
-Rcpp::sourceCpp("code/rmvn_omp.cpp") #to run need install.packages("sitmo"), and https://www.boost.org/
+Rcpp::sourceCpp("code/rmvn_omp.cpp") 
 load("data/TotalsTest.RData")
 
 ## Fit the 48 models in parallel
@@ -73,4 +76,6 @@ for(i in 1:12){
   lines(1:48, y_pred_mat[(i*48-47):(i*48),3], col=2, lty=2)
 }
 
-
+#how many of the true values fall outside of the interval?
+sum(y_test < apply(y_pred_mat, 1, min) | y_test > apply(y_pred_mat, 1, max)) / length(y_test)
+#35.6 %
