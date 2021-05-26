@@ -26,10 +26,10 @@ df_avg_daily <- df %>% group_by(time, ID) %>%
   column_to_rownames("ID")
 
 # PCA from scratch
-pca <- function(x, sigma = 1.5) {
+pca <- function(x, sigma = 1) {
   nodes <- dim(x)[1]
 
-  dmat <- dist(x)
+  dmat <- as.matrix(dist(x))
   
   S <- apply(dmat, 1:2, function(x) x / sigma)
 
@@ -37,14 +37,14 @@ pca <- function(x, sigma = 1.5) {
   normalised_Laplacian <- diag(S_degree^(-1/2)) %*% S %*% diag(S_degree^(-1/2))
 
   ev <- eigen(normalised_Laplacian)
-  ev_vector <- ev$vectors[,1:3]
+  ev_vector <- ev$vectors[,1:2]
   
   for(i in 1:nodes){
     ev_vector[i,] <- ev_vector[i,] / sqrt(sum(ev_vector[i,]^2))
   }
   
-  EP=eigen(var(X))
-  PC=as.matrix(X) %*% as.matrix(EP$vectors)
+  EP=eigen(var(x))
+  PC=as.matrix(x) %*% as.matrix(EP$vectors)
   
   # Return the first two principle components for ploting
   return(data.frame(PC[, 1], PC[, 2]))
@@ -78,7 +78,7 @@ df_avg_time.pca <- pca(as.matrix(df_avg_tod))
 
 names(df_avg_time.pca) <- c("pc1", "pc2")
 # 
-ggplot() + geom_point(aes(x = df_avg_time.pca$pc1, y = df_avg_time.pca$pc2), colour = "black", size = 1)
+ggplot() + geom_point(aes(x =- df_avg_time.pca$pc1, y = df_avg_time.pca$pc2), colour = "black", size = 1)
 #   
 
 
