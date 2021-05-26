@@ -61,7 +61,7 @@ Rcpp::List par_reg(mat X, mat y, vec lams, vec idx)
   
   vec opt_lambdas(ncol);
   
-  #pragma omp parallel for
+  #pragma omp parallel for num_threads(8)
   for(int i=0; i<ncol; i++)
   {
   
