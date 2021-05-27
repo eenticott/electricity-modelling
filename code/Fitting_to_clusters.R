@@ -1,28 +1,44 @@
 source("code/cluster_stuff.R")
 source("code/data_prep2.R")
+source("code/one_hot_encode.R")
 Rcpp::sourceCpp("code/ridge_reg.cpp")
+rm(Irish)
+rm(df_cluster_1)
+rm(df_cluster_2)
+rm(df_cluster_3)
+rm(df_cluster_4)
+rm(df_cluster_5)
+gc()
 
-#create a df
 set.seed(59)
 for (clust in unique(clusters)) {
   # Create the subsample of data from ID's in each cluster
   samp <- cust[,names(clusters[clusters == clust])]
   print(clust)
   # Proceed in same way that we fit 100 customers
-  df <- select(extra, -date, -dateTime) %>%
+  df <- select(extra, -date) %>%
     cbind(samp) %>%
-    pivot_longer(names_to = "ID", c(-time, -toy, -dow, -tod, -temp, -testSet), values_to = "demand" ) %>%
-    left_join(surv, by = "ID")
+    pivot_longer(names_to = "ID", c(-time, -toy, -dow, -tod, -temp, -testSet, -dateTime), values_to = "demand" ) %>%
+    left_join(surv, by = "ID") %>%
+    mutate(windows = as.numeric(windows),
+           tariff = as.numeric(tariff),
+           stimulus = as.numeric(stimulus),
+           class = as.numeric(class))
   
+  df <- one_hot_encode(df)
+  #saveRDS(df, "df.rds")
   X <- df %>%
-    select(-time, -ID, -demand, -testSet) %>%
-    mutate_if(is.factor, ~as.numeric(.)) %>%
+    select(-time, -ID, -demand, -testSet, -dateTime) %>%
+    mutate_if(is.factor, ~as.numeric(.)-1) %>%
     as.data.frame()
   
   y <- df %>% pull(demand)
   
+  testset <- df$testSet
+  #rm(df)
+  rm(samp)
   #feature transform numerical columns of X
-  cols <- c(1, 3, 4, 5, 8, 12)
+  cols <- c(1, 3, 4, 5, 7, 11)
   for(i in cols){
     name <- colnames(X)[i]
     col <- paste0(name,"^2")
@@ -39,21 +55,25 @@ for (clust in unique(clusters)) {
     }
   }
   
+  rm(cols)
+  
   #standardise
   X <- as.matrix(X)
   #X <- scale(X)
   mean_y <- mean(y)
+  
   y <- y - mean(y) 
   
   #remove the last day as a test
-  y_test <- y[df$testSet]
-  X_test <- X[df$testSet,]
+  y_test <- y[testset]
+  X_test <- X[testset,]
   
-  y <- y[!df$testSet]
-  X <- X[!df$testSet,]
+  y <- y[!testset]
+  X <- X[!testset,]
   
-  ## Create model
-  M <- 30
+  ## Create a model with totals
+  ## Create model by household
+  M <- 20
   y_pred <- rep(NA, length(y_test))
   lambdas <- exp(seq(-5,5,length=M))
   
@@ -73,13 +93,34 @@ for (clust in unique(clusters)) {
   y_pred <- y_pred + mean_y
   y_test <- y_test + mean_y
   
-  #plot total of 100 customer predictions
+  #df <- readRDS("df.rds")
+  df <- df %>% mutate(month = month(dateTime, label = TRUE))
+  #plot totalof cluster predictions
   res <- df %>%
     filter(testSet) %>%
     cbind(y_test, y_pred) %>%
     group_by(time) %>%
     summarise(y_test = sum(y_test),
               y_pred = sum(y_pred))
+  
+  res2 <- df %>%
+    filter(testSet) %>%
+    cbind(y_test, y_pred) %>%
+    group_by(tod, month) %>%
+    summarise(y_test = sum(y_test),
+              y_pred = sum(y_pred), 
+              cluster = clust)
+  
+  saveRDS(res2, paste0("data/plotdata_cluster", clust))
+  
+  monthlyplot <- ggplot(res2) + 
+    geom_line(aes(x = tod/2, y = y_test, color = "True value")) +
+    geom_line(aes(x = tod/2, y = y_pred, color = "Prediction")) +
+    facet_wrap(vars(month)) +
+    xlab("Time of Day (hour)") +
+    ylab("Demand (kWh)")
+  
+  ggsave(paste0("plots/monthly_predictions_cluster", clust), monthlyplot)
   
   png(paste0("plots/cluster",  clust, "model.png"), width=1000, height=800)
   par(mfrow=c(3, 4))
@@ -96,7 +137,8 @@ for (clust in unique(clusters)) {
   rm(res)
   rm(X)
   rm(y)
-  rm(df)
+  gc()
 }
+
 
 
